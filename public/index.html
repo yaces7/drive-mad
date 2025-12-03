@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Drive Mad</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+    }
+    #game-canvas {
+      display: block;
+      width: 100%;
+      background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      color: #fff;
+      font-size: 18px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+    #menu-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-radius: 8px;
+    }
+    #menu-overlay.hidden { display: none; }
+    #menu-overlay h1 {
+      color: #ff6b35;
+      font-size: 48px;
+      margin-bottom: 20px;
+      text-shadow: 3px 3px 0 #000;
+    }
+    .menu-btn {
+      background: linear-gradient(180deg, #ff6b35, #e55a2b);
+      border: none;
+      color: #fff;
+      padding: 15px 40px;
+      font-size: 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 8px;
+      transition: transform 0.1s;
+    }
+    .menu-btn:hover { transform: scale(1.05); }
+    .level-btn {
+      background: linear-gradient(180deg, #4CAF50, #388E3C);
+    }
+    #controls-hint {
+      color: #aaa;
+      margin-top: 30px;
+      text-align: center;
+      font-size: 14px;
+    }
+    #game-over {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-radius: 8px;
+    }
+    #game-over.hidden { display: none; }
+    #game-over h2 { color: #ff4444; font-size: 36px; margin-bottom: 20px; }
+    #game-over.win h2 { color: #4CAF50; }
+    #touch-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 10px;
+      right: 10px;
+      display: none;
+      justify-content: space-between;
+    }
+    .touch-btn {
+      width: 80px;
+      height: 80px;
+      background: rgba(255,255,255,0.3);
+      border: 3px solid rgba(255,255,255,0.5);
+      border-radius: 50%;
+      font-size: 24px;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    @media (pointer: coarse) {
+      #touch-controls { display: flex; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas" width="900" height="500"></canvas>
+    
+    <div id="hud">
+      <span id="level-display">Seviye: 1</span>
+      <span id="time-display">Süre: 0.0s</span>
+    </div>
+
+    <div id="menu-overlay">
+      <h1>🚗 DRIVE MAD</h1>
+      <button class="menu-btn" id="start-btn">BAŞLA</button>
+      <div id="level-select"></div>
+      <div id="controls-hint">
+        ⬆️ Gaz &nbsp;|&nbsp; ⬇️ Fren &nbsp;|&nbsp; ⬅️➡️ Denge<br>
+        R: Yeniden Başlat
+      </div>
+    </div>
+
+    <div id="game-over" class="hidden">
+      <h2 id="game-over-text">ÇARPTIN!</h2>
+      <button class="menu-btn" id="retry-btn">Tekrar Dene</button>
+      <button class="menu-btn level-btn" id="next-btn" style="display:none">Sonraki Seviye</button>
+    </div>
+
+    <div id="touch-controls">
+      <button class="touch-btn" id="touch-left">⬅️</button>
+      <button class="touch-btn" id="touch-brake">⬇️</button>
+      <button class="touch-btn" id="touch-gas">⬆️</button>
+      <button class="touch-btn" id="touch-right">➡️</button>
+    </div>
+  </div>
+
+  <script src="bundle.js"></script>
+</body>
+</html>
