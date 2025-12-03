@@ -5,63 +5,104 @@ const { Bodies, Body, Composite, Constraint, World } = Matter;
 export class Car {
   constructor(physics, x, y) {
     this.physics = physics;
-    this.maxSpeed = 15;
-    this.torque = 0.002;
-    this.airControl = 0.0008;
     
-    // Araç gövdesi
-    this.body = Bodies.rectangle(x, y, 80, 25, {
-      friction: 0.8,
-      restitution: 0.2,
-      density: 0.002,
-      label: 'car-body'
-    });
-
-    // Tekerlekler
-    const wheelRadius = 18;
-    const wheelY = y + 15;
+    // Monster truck parametreleri
+    const bodyWidth = 100;
+    const bodyHeight = 35;
+    const wheelRadius = 32; // Büyük tekerlekler
+    const wheelBase = 70;   // Tekerlekler arası mesafe
+    const suspensionHeight = 25; // Yüksek süspansiyon
     
-    this.wheelFront = Bodies.circle(x + 28, wheelY, wheelRadius, {
-      friction: 1,
+    // Araç gövdesi - daha ağır ve stabil
+    this.body = Bodies.rectangle(x, y, bodyWidth, bodyHeight, {
+      friction: 0.9,
       restitution: 0.1,
       density: 0.003,
-      label: 'wheel'
+      label: 'car-body',
+      chamfer: { radius: 5 }
     });
 
-    this.wheelBack = Bodies.circle(x - 28, wheelY, wheelRadius, {
-      friction: 1,
+    // Kabin (üst kısım)
+    this.cabin = Bodies.rectangle(x - 15, y - 25, 40, 25, {
+      friction: 0.9,
       restitution: 0.1,
-      density: 0.003,
-      label: 'wheel'
+      density: 0.001,
+      label: 'car-cabin',
+      chamfer: { radius: 3 }
     });
 
-    // Süspansiyon (constraints)
+    // Gövde + kabin birleştir
+    const carBody = Body.create({
+      parts: [this.body, this.cabin],
+      friction: 0.9,
+      restitution: 0.1
+    });
+    this.body = carBody;
+
+    // Büyük monster truck tekerlekleri
+    const wheelY = y + suspensionHeight;
+    
+    this.wheelFront = Bodies.circle(x + wheelBase/2, wheelY, wheelRadius, {
+      friction: 0.95,
+      frictionStatic: 1,
+      restitution: 0.05,
+      density: 0.004,
+      label: 'wheel',
+      slop: 0.01
+    });
+
+    this.wheelBack = Bodies.circle(x - wheelBase/2, wheelY, wheelRadius, {
+      friction: 0.95,
+      frictionStatic: 1,
+      restitution: 0.05,
+      density: 0.004,
+      label: 'wheel',
+      slop: 0.01
+    });
+
+    // Güçlü süspansiyon - monster truck için
     this.suspensionFront = Constraint.create({
       bodyA: this.body,
-      pointA: { x: 28, y: 15 },
+      pointA: { x: wheelBase/2, y: suspensionHeight },
       bodyB: this.wheelFront,
-      stiffness: 0.5,
-      damping: 0.3,
+      stiffness: 0.4,
+      damping: 0.2,
       length: 0
     });
 
     this.suspensionBack = Constraint.create({
       bodyA: this.body,
-      pointA: { x: -28, y: 15 },
+      pointA: { x: -wheelBase/2, y: suspensionHeight },
       bodyB: this.wheelBack,
-      stiffness: 0.5,
-      damping: 0.3,
+      stiffness: 0.4,
+      damping: 0.2,
       length: 0
     });
 
-    // Dünyaya ekle
+    // Anti-roll bar (daha stabil)
+    this.antiRoll = Constraint.create({
+      bodyA: this.wheelFront,
+      bodyB: this.wheelBack,
+      stiffness: 0.1,
+      damping: 0.3,
+      length: wheelBase
+    });
+
     World.add(physics.world, [
       this.body,
       this.wheelFront,
       this.wheelBack,
       this.suspensionFront,
-      this.suspensionBack
+      this.suspensionBack,
+      this.antiRoll
     ]);
+
+    // Kontrol parametreleri
+    this.maxSpeed = 18;
+    this.acceleration = 0.12;
+    this.brakeForce = 0.85;
+    this.airControlForce = 0.003;
+    this.groundTorque = 0.0015;
   }
 
   get position() {
@@ -72,35 +113,50 @@ export class Car {
     return this.body.angle;
   }
 
-  get isFlipped() {
-    const angle = Math.abs(this.body.angle % (Math.PI * 2));
-    return angle > Math.PI * 0.6 && angle < Math.PI * 1.4;
+  get velocity() {
+    return this.body.velocity;
   }
 
-  accelerate(force) {
-    const speed = this.wheelBack.angularVelocity;
-    if (Math.abs(speed) < this.maxSpeed) {
-      Body.setAngularVelocity(this.wheelBack, speed + force * 0.5);
-      Body.setAngularVelocity(this.wheelFront, this.wheelFront.angularVelocity + force * 0.3);
+  get isFlipped() {
+    const angle = this.body.angle % (Math.PI * 2);
+    const normalized = angle < 0 ? angle + Math.PI * 2 : angle;
+    return normalized > Math.PI * 0.55 && normalized < Math.PI * 1.45;
+  }
+
+  get isGrounded() {
+    // Basit ground check - tekerlek hızına bak
+    return Math.abs(this.wheelBack.angularVelocity) > 0.1 || 
+           Math.abs(this.wheelFront.angularVelocity) > 0.1;
+  }
+
+  accelerate(direction = 1) {
+    const currentSpeed = this.wheelBack.angularVelocity;
+    const targetSpeed = direction * this.maxSpeed;
+    
+    if (Math.abs(currentSpeed) < Math.abs(targetSpeed)) {
+      const force = direction * this.acceleration;
+      Body.setAngularVelocity(this.wheelBack, currentSpeed + force);
+      Body.setAngularVelocity(this.wheelFront, this.wheelFront.angularVelocity + force * 0.7);
     }
   }
 
   brake() {
-    Body.setAngularVelocity(this.wheelBack, this.wheelBack.angularVelocity * 0.9);
-    Body.setAngularVelocity(this.wheelFront, this.wheelFront.angularVelocity * 0.9);
+    Body.setAngularVelocity(this.wheelBack, this.wheelBack.angularVelocity * this.brakeForce);
+    Body.setAngularVelocity(this.wheelFront, this.wheelFront.angularVelocity * this.brakeForce);
   }
 
   tilt(direction) {
-    Body.applyForce(this.body, this.body.position, { x: 0, y: 0 });
-    Body.setAngularVelocity(this.body, this.body.angularVelocity + direction * this.airControl * 60);
+    // Havada denge kontrolü
+    const torque = direction * this.airControlForce * 100;
+    Body.setAngularVelocity(this.body, this.body.angularVelocity + torque);
   }
 
   update(input) {
     if (input.gas) {
-      this.accelerate(0.8);
+      this.accelerate(1);
     }
     if (input.brake) {
-      this.brake();
+      this.accelerate(-0.5); // Geri git
     }
     if (input.left) {
       this.tilt(-1);
@@ -108,6 +164,52 @@ export class Car {
     if (input.right) {
       this.tilt(1);
     }
+    
+    // Hiçbir tuşa basılmıyorsa hafif fren
+    if (!input.gas && !input.brake) {
+      Body.setAngularVelocity(this.wheelBack, this.wheelBack.angularVelocity * 0.995);
+      Body.setAngularVelocity(this.wheelFront, this.wheelFront.angularVelocity * 0.995);
+    }
+  }
+
+  bounce(power) {
+    Body.setVelocity(this.body, { 
+      x: this.body.velocity.x, 
+      y: -power 
+    });
+  }
+
+  boost(power) {
+    const angle = this.body.angle;
+    Body.applyForce(this.body, this.body.position, {
+      x: Math.cos(angle) * power * 0.001,
+      y: 0
+    });
+    // Tekerleklere de hız ver
+    const currentSpeed = this.wheelBack.angularVelocity;
+    if (currentSpeed < this.maxSpeed * 1.5) {
+      Body.setAngularVelocity(this.wheelBack, currentSpeed + 0.3);
+    }
+  }
+
+  slow() {
+    Body.setAngularVelocity(this.wheelBack, this.wheelBack.angularVelocity * 0.95);
+    Body.setAngularVelocity(this.wheelFront, this.wheelFront.angularVelocity * 0.95);
+  }
+
+  teleportTo(x, y) {
+    const offsetX = x - this.body.position.x;
+    const offsetY = y - this.body.position.y;
+    
+    Body.setPosition(this.body, { x, y });
+    Body.setPosition(this.wheelFront, { 
+      x: this.wheelFront.position.x + offsetX, 
+      y: this.wheelFront.position.y + offsetY 
+    });
+    Body.setPosition(this.wheelBack, { 
+      x: this.wheelBack.position.x + offsetX, 
+      y: this.wheelBack.position.y + offsetY 
+    });
   }
 
   destroy() {
@@ -116,7 +218,8 @@ export class Car {
       this.wheelFront,
       this.wheelBack,
       this.suspensionFront,
-      this.suspensionBack
+      this.suspensionBack,
+      this.antiRoll
     ]);
   }
 }

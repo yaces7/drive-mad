@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drive Mad - Level Editor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+      display: flex;
+      height: 100vh;
+    }
+    #sidebar {
+      width: 280px;
+      background: #16213e;
+      padding: 15px;
+      overflow-y: auto;
+    }
+    #sidebar h2 { color: #ff6b35; margin-bottom: 15px; }
+    .tool-section { margin-bottom: 20px; }
+    .tool-section h3 { font-size: 14px; color: #aaa; margin-bottom: 8px; }
+    .tool-btn {
+      display: inline-block;
+      padding: 8px 12px;
+      margin: 3px;
+      background: #0f3460;
+      border: none;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .tool-btn:hover { background: #1a4a7a; }
+    .tool-btn.active { background: #ff6b35; }
+    #canvas-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    #toolbar {
+      background: #0f3460;
+      padding: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    #toolbar button {
+      padding: 8px 16px;
+      background: #ff6b35;
+      border: none;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #toolbar button:hover { background: #e55a2b; }
+    #editor-canvas {
+      flex: 1;
+      background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
+      cursor: crosshair;
+    }
+    .prop-group { margin-bottom: 10px; }
+    .prop-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 3px; }
+    .prop-group input, .prop-group select {
+      width: 100%;
+      padding: 6px;
+      background: #0f3460;
+      border: 1px solid #1a4a7a;
+      color: #fff;
+      border-radius: 4px;
+    }
+    #json-output {
+      width: 100%;
+      height: 150px;
+      background: #0a0a15;
+      border: 1px solid #333;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 8px;
+      resize: vertical;
+    }
+    #help { font-size: 11px; color: #888; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h2>🛠️ Level Editor</h2>
+    
+    <div class="tool-section">
+      <h3>Araçlar</h3>
+      <button class="tool-btn active" data-tool="select">🔍 Seç</button>
+      <button class="tool-btn" data-tool="delete">🗑️ Sil</button>
+      <button class="tool-btn" data-tool="move">✋ Taşı</button>
+    </div>
+
+    <div class="tool-section">
+      <h3>Zemin</h3>
+      <button class="tool-btn" data-tool="ground">🟫 Normal</button>
+      <button class="tool-btn" data-tool="ice">🧊 Buz</button>
+      <button class="tool-btn" data-tool="sticky">🍯 Yapışkan</button>
+    </div>
+
+    <div class="tool-section">
+      <h3>Özel Alanlar</h3>
+      <button class="tool-btn" data-tool="spawn">🚗 Başlangıç</button>
+      <button class="tool-btn" data-tool="finish">🏁 Finiş</button>
+      <button class="tool-btn" data-tool="hazard">💀 Tehlike</button>
+      <button class="tool-btn" data-tool="bouncer">🔼 Trambolin</button>
+    </div>
+
+    <div class="tool-section">
+      <h3>Mekanikler</h3>
+      <button class="tool-btn" data-tool="moving">↔️ H.Platform</button>
+      <button class="tool-btn" data-tool="gravity">🌀 Yerçekimi</button>
+      <button class="tool-btn" data-tool="teleport">🌀 Portal</button>
+      <button class="tool-btn" data-tool="gate">🚪 Kapı</button>
+      <button class="tool-btn" data-tool="crusher">⬇️ Ezici</button>
+      <button class="tool-btn" data-tool="boost">⚡ Boost</button>
+      <button class="tool-btn" data-tool="slow">🐌 Yavaşlat</button>
+    </div>
+
+    <div class="tool-section">
+      <h3>Seçili Nesne</h3>
+      <div class="prop-group">
+        <label>Genişlik</label>
+        <input type="number" id="prop-width" value="200" min="20" max="1000">
+      </div>
+      <div class="prop-group">
+        <label>Yükseklik</label>
+        <input type="number" id="prop-height" value="40" min="10" max="500">
+      </div>
+      <div class="prop-group">
+        <label>Açı (derece)</label>
+        <input type="number" id="prop-angle" value="0" min="-45" max="45">
+      </div>
+      <div class="prop-group">
+        <label>Güç/Hız</label>
+        <input type="number" id="prop-power" value="20" min="1" max="50">
+      </div>
+    </div>
+
+    <div class="tool-section">
+      <h3>Level JSON</h3>
+      <textarea id="json-output" readonly></textarea>
+      <button class="tool-btn" onclick="copyJSON()" style="margin-top:5px">📋 Kopyala</button>
+      <button class="tool-btn" onclick="loadJSON()">📥 Yükle</button>
+    </div>
+
+    <div id="help">
+      Tıkla: Nesne ekle<br>
+      Sağ tık: Sil<br>
+      Scroll: Yakınlaştır<br>
+      Orta tık + sürükle: Kaydır
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <div id="toolbar">
+      <button onclick="testLevel()">▶️ Test Et</button>
+      <button onclick="clearLevel()">🗑️ Temizle</button>
+      <button onclick="window.location.href='index.html'">🏠 Ana Menü</button>
+      <span style="margin-left:auto;font-size:12px;color:#aaa">
+        Kamera: <span id="camera-pos">0, 0</span> | Zoom: <span id="zoom-level">1.0</span>
+      </span>
+    </div>
+    <canvas id="editor-canvas"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('editor-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let camera = { x: 0, y: 0 };
+    let zoom = 1;
+    let currentTool = 'select';
+    let objects = [];
+    let selectedObject = null;
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let spawnPoint = { x: 100, y: 200 };
+    let teleportPair = null;
+
+    function resize() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight - 50;
+      render();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Tool selection
+    document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTool = btn.dataset.tool;
+      });
+    });
+
+    function screenToWorld(sx, sy) {
+      return {
+        x: (sx - canvas.width/2) / zoom + camera.x,
+        y: (sy - canvas.height/2) / zoom + camera.y
+      };
+    }
+
+    function worldToScreen(wx, wy) {
+      return {
+        x: (wx - camera.x) * zoom + canvas.width/2,
+        y: (wy - camera.y) * zoom + canvas.height/2
+      };
+    }
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      
+      if (currentTool === 'select') {
+        selectedObject = findObjectAt(world.x, world.y);
+        if (selectedObject) updatePropsUI();
+      } else if (currentTool === 'delete') {
+        const obj = findObjectAt(world.x, world.y);
+        if (obj) objects = objects.filter(o => o !== obj);
+      } else if (currentTool === 'spawn') {
+        spawnPoint = { x: Math.round(world.x), y: Math.round(world.y) };
+      } else if (currentTool === 'teleport') {
+        if (!teleportPair) {
+          teleportPair = { x1: Math.round(world.x), y1: Math.round(world.y) };
+        } else {
+          objects.push({
+            type: 'teleport',
+            x1: teleportPair.x1, y1: teleportPair.y1,
+            x2: Math.round(world.x), y2: Math.round(world.y),
+            w: 50, h: 70
+          });
+          teleportPair = null;
+        }
+      } else {
+        addObject(world.x, world.y);
+      }
+      updateJSON();
+      render();
+    });
+
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const obj = findObjectAt(world.x, world.y);
+      if (obj) objects = objects.filter(o => o !== obj);
+      updateJSON();
+      render();
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoom *= e.deltaY > 0 ? 0.9 : 1.1;
+      zoom = Math.max(0.2, Math.min(3, zoom));
+      document.getElementById('zoom-level').textContent = zoom.toFixed(1);
+      render();
+    });
+
+    let middleDown = false;
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 1) {
+        middleDown = true;
+        dragStart = { x: e.clientX, y: e.clientY };
+      } else if (currentTool === 'move' && e.button === 0) {
+        const rect = canvas.getBoundingClientRect();
+        const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+        selectedObject = findObjectAt(world.x, world.y);
+        if (selectedObject) isDragging = true;
+      }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (middleDown) {
+        camera.x -= (e.clientX - dragStart.x) / zoom;
+        camera.y -= (e.clientY - dragStart.y) / zoom;
+        dragStart = { x: e.clientX, y: e.clientY };
+        document.getElementById('camera-pos').textContent = `${Math.round(camera.x)}, ${Math.round(camera.y)}`;
+        render();
+      } else if (isDragging && selectedObject) {
+        const rect = canvas.getBoundingClientRect();
+        const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+        selectedObject.x = Math.round(world.x);
+        selectedObject.y = Math.round(world.y);
+        updateJSON();
+        render();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      middleDown = false;
+      isDragging = false;
+    });
+
+    function addObject(x, y) {
+      const w = parseInt(document.getElementById('prop-width').value);
+      const h = parseInt(document.getElementById('prop-height').value);
+      const angle = parseFloat(document.getElementById('prop-angle').value) * Math.PI / 180;
+      const power = parseInt(document.getElementById('prop-power').value);
+
+      const obj = { x: Math.round(x), y: Math.round(y), w, h };
+
+      switch(currentTool) {
+        case 'ground': obj.type = 'ground'; obj.angle = angle; break;
+        case 'ice': obj.type = 'ice'; obj.angle = angle; break;
+        case 'sticky': obj.type = 'sticky'; obj.angle = angle; break;
+        case 'finish': obj.type = 'finish'; obj.w = 60; obj.h = 100; break;
+        case 'hazard': obj.type = 'hazard'; break;
+        case 'bouncer': obj.type = 'bouncer'; obj.power = power; obj.h = 20; break;
+        case 'moving': obj.type = 'moving'; obj.moveX = 100; obj.moveY = 0; obj.speed = 0.002; break;
+        case 'gravity': obj.type = 'gravity'; obj.gravity = -1; break;
+        case 'gate': obj.type = 'gate'; obj.w = 25; obj.h = 100; obj.openTime = 2000; obj.closeTime = 2000; break;
+        case 'crusher': obj.type = 'crusher'; obj.w = 80; obj.h = 150; obj.speed = 0.004; break;
+        case 'boost': obj.type = 'boost'; obj.power = power; break;
+        case 'slow': obj.type = 'slow'; break;
+        default: return;
+      }
+      objects.push(obj);
+    }
+
+    function findObjectAt(x, y) {
+      for (let i = objects.length - 1; i >= 0; i--) {
+        const o = objects[i];
+        if (x > o.x - o.w/2 && x < o.x + o.w/2 && y > o.y - o.h/2 && y < o.y + o.h/2) {
+          return o;
+        }
+      }
+      return null;
+    }
+
+    function updatePropsUI() {
+      if (!selectedObject) return;
+      document.getElementById('prop-width').value = selectedObject.w;
+      document.getElementById('prop-height').value = selectedObject.h;
+      document.getElementById('prop-angle').value = Math.round((selectedObject.angle || 0) * 180 / Math.PI);
+      document.getElementById('prop-power').value = selectedObject.power || 20;
+    }
+
+    // Update selected object when props change
+    ['prop-width', 'prop-height', 'prop-angle', 'prop-power'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        if (!selectedObject) return;
+        selectedObject.w = parseInt(document.getElementById('prop-width').value);
+        selectedObject.h = parseInt(document.getElementById('prop-height').value);
+        selectedObject.angle = parseFloat(document.getElementById('prop-angle').value) * Math.PI / 180;
+        selectedObject.power = parseInt(document.getElementById('prop-power').value);
+        updateJSON();
+        render();
+      });
+    });
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Background
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, '#87CEEB');
+      gradient.addColorStop(1, '#E0F6FF');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Grid
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 1;
+      const gridSize = 50 * zoom;
+      const offsetX = (canvas.width/2 - camera.x * zoom) % gridSize;
+      const offsetY = (canvas.height/2 - camera.y * zoom) % gridSize;
+      for (let x = offsetX; x < canvas.width; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = offsetY; y < canvas.height; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+
+      // Objects
+      objects.forEach(o => drawObject(o, o === selectedObject));
+
+      // Spawn point
+      const sp = worldToScreen(spawnPoint.x, spawnPoint.y);
+      ctx.fillStyle = '#ff6b35';
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, 15 * zoom, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `${12 * zoom}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('🚗', sp.x, sp.y + 4 * zoom);
+
+      // Teleport pair in progress
+      if (teleportPair) {
+        const tp = worldToScreen(teleportPair.x1, teleportPair.y1);
+        ctx.strokeStyle = '#8B008B';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(tp.x - 25 * zoom, tp.y - 35 * zoom, 50 * zoom, 70 * zoom);
+        ctx.setLineDash([]);
+      }
+    }
+
+    function drawObject(o, selected) {
+      const screen = worldToScreen(o.x, o.y);
+      const w = o.w * zoom, h = o.h * zoom;
+      
+      ctx.save();
+      ctx.translate(screen.x, screen.y);
+      if (o.angle) ctx.rotate(o.angle);
+
+      let color = '#6B5344';
+      switch(o.type) {
+        case 'ice': color = '#a8e6ff'; break;
+        case 'sticky': color = '#8B4513'; break;
+        case 'finish': color = 'rgba(0,255,100,0.5)'; break;
+        case 'hazard': color = '#ff4444'; break;
+        case 'bouncer': color = '#FFD700'; break;
+        case 'moving': color = '#8B4513'; break;
+        case 'gravity': color = 'rgba(100,150,255,0.4)'; break;
+        case 'teleport': color = 'rgba(138,43,226,0.6)'; break;
+        case 'gate': color = '#ff6600'; break;
+        case 'crusher': color = '#555'; break;
+        case 'boost': color = 'rgba(0,255,0,0.4)'; break;
+        case 'slow': color = 'rgba(255,0,0,0.3)'; break;
+      }
+
+      ctx.fillStyle = color;
+      ctx.fillRect(-w/2, -h/2, w, h);
+
+      if (selected) {
+        ctx.strokeStyle = '#ff0';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-w/2, -h/2, w, h);
+      }
+
+      ctx.restore();
+
+      // Draw teleport exit
+      if (o.type === 'teleport') {
+        const exit = worldToScreen(o.x2, o.y2);
+        ctx.fillStyle = 'rgba(0,255,127,0.6)';
+        ctx.fillRect(exit.x - 25 * zoom, exit.y - 35 * zoom, 50 * zoom, 70 * zoom);
+        ctx.strokeStyle = '#8B008B';
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(screen.x, screen.y);
+        ctx.lineTo(exit.x, exit.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    function updateJSON() {
+      const level = {
+        id: 99,
+        name: "Custom Level",
+        hint: "Kendi seviyeni test et!",
+        spawn: spawnPoint,
+        terrain: [],
+        finish: null,
+        hazards: [],
+        bouncers: [],
+        movingPlatforms: [],
+        gravityZones: [],
+        teleports: [],
+        timedGates: [],
+        crushers: [],
+        boostZones: [],
+        slowZones: []
+      };
+
+      objects.forEach(o => {
+        switch(o.type) {
+          case 'ground':
+          case 'ice':
+          case 'sticky':
+            level.terrain.push({ type: o.type, x: o.x, y: o.y, w: o.w, h: o.h, angle: o.angle || 0 });
+            break;
+          case 'finish':
+            level.finish = { x: o.x, y: o.y, w: o.w, h: o.h };
+            break;
+          case 'hazard':
+            level.hazards.push({ x: o.x, y: o.y, w: o.w, h: o.h });
+            break;
+          case 'bouncer':
+            level.bouncers.push({ x: o.x, y: o.y, w: o.w, h: o.h, power: o.power });
+            break;
+          case 'moving':
+            level.movingPlatforms.push({ x: o.x, y: o.y, w: o.w, h: o.h, moveX: o.moveX, moveY: o.moveY, speed: o.speed });
+            break;
+          case 'gravity':
+            level.gravityZones.push({ x: o.x, y: o.y, w: o.w, h: o.h, gravity: o.gravity });
+            break;
+          case 'teleport':
+            level.teleports.push({ x1: o.x1, y1: o.y1, x2: o.x2, y2: o.y2, w: o.w, h: o.h });
+            break;
+          case 'gate':
+            level.timedGates.push({ x: o.x, y: o.y, w: o.w, h: o.h, openTime: o.openTime, closeTime: o.closeTime });
+            break;
+          case 'crusher':
+            level.crushers.push({ x: o.x, y: o.y, w: o.w, h: o.h, speed: o.speed });
+            break;
+          case 'boost':
+            level.boostZones.push({ x: o.x, y: o.y, w: o.w, h: o.h, power: o.power });
+            break;
+          case 'slow':
+            level.slowZones.push({ x: o.x, y: o.y, w: o.w, h: o.h });
+            break;
+        }
+      });
+
+      // Clean empty arrays
+      Object.keys(level).forEach(k => {
+        if (Array.isArray(level[k]) && level[k].length === 0) delete level[k];
+      });
+
+      document.getElementById('json-output').value = JSON.stringify(level, null, 2);
+    }
+
+    function copyJSON() {
+      const textarea = document.getElementById('json-output');
+      textarea.select();
+      document.execCommand('copy');
+      alert('JSON kopyalandı!');
+    }
+
+    function loadJSON() {
+      const json = prompt('Level JSON yapıştır:');
+      if (!json) return;
+      try {
+        const level = JSON.parse(json);
+        objects = [];
+        spawnPoint = level.spawn || { x: 100, y: 200 };
+        
+        level.terrain?.forEach(t => objects.push({ ...t }));
+        if (level.finish) objects.push({ type: 'finish', ...level.finish });
+        level.hazards?.forEach(h => objects.push({ type: 'hazard', ...h }));
+        level.bouncers?.forEach(b => objects.push({ type: 'bouncer', ...b }));
+        level.movingPlatforms?.forEach(m => objects.push({ type: 'moving', ...m }));
+        level.gravityZones?.forEach(g => objects.push({ type: 'gravity', ...g }));
+        level.teleports?.forEach(t => objects.push({ type: 'teleport', x: t.x1, y: t.y1, ...t }));
+        level.timedGates?.forEach(g => objects.push({ type: 'gate', ...g }));
+        level.crushers?.forEach(c => objects.push({ type: 'crusher', ...c }));
+        level.boostZones?.forEach(b => objects.push({ type: 'boost', ...b }));
+        level.slowZones?.forEach(s => objects.push({ type: 'slow', ...s }));
+        
+        updateJSON();
+        render();
+      } catch(e) {
+        alert('Geçersiz JSON!');
+      }
+    }
+
+    function clearLevel() {
+      if (confirm('Tüm nesneler silinecek. Emin misin?')) {
+        objects = [];
+        spawnPoint = { x: 100, y: 200 };
+        updateJSON();
+        render();
+      }
+    }
+
+    function testLevel() {
+      const json = document.getElementById('json-output').value;
+      localStorage.setItem('customLevel', json);
+      window.location.href = 'index.html?custom=1';
+    }
+
+    render();
+    updateJSON();
+  </script>
+</body>
+</html>

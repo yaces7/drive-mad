@@ -89,28 +89,28 @@
     #game-over.hidden { display: none; }
     #game-over h2 { color: #ff4444; font-size: 36px; margin-bottom: 20px; }
     #game-over.win h2 { color: #4CAF50; }
-    #touch-controls {
+    #touch-hint {
       position: absolute;
-      bottom: 20px;
-      left: 10px;
-      right: 10px;
+      bottom: 15px;
+      left: 0;
+      right: 0;
       display: none;
       justify-content: space-between;
+      pointer-events: none;
+      padding: 0 20px;
     }
-    .touch-btn {
-      width: 80px;
-      height: 80px;
-      background: rgba(255,255,255,0.3);
-      border: 3px solid rgba(255,255,255,0.5);
-      border-radius: 50%;
-      font-size: 24px;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    .touch-side {
+      color: rgba(255,255,255,0.5);
+      font-size: 16px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
     @media (pointer: coarse) {
-      #touch-controls { display: flex; }
+      #touch-hint { display: flex; }
+      #game-canvas { cursor: pointer; }
+    }
+    #game-canvas {
+      touch-action: none;
     }
   </style>
 </head>
@@ -126,9 +126,11 @@
     <div id="menu-overlay">
       <h1>🚗 DRIVE MAD</h1>
       <button class="menu-btn" id="start-btn">BAŞLA</button>
+      <button class="menu-btn" id="editor-btn" style="background:linear-gradient(180deg,#9b59b6,#8e44ad)">🛠️ Level Editor</button>
       <div id="level-select"></div>
       <div id="controls-hint">
-        ⬆️ Gaz &nbsp;|&nbsp; ⬇️ Fren &nbsp;|&nbsp; ⬅️➡️ Denge<br>
+        ⬆️ Gaz &nbsp;|&nbsp; ⬇️ Geri &nbsp;|&nbsp; ⬅️➡️ Denge<br>
+        📱 Mobil: Sol yarıya dokun = Sola, Sağ yarıya dokun = Sağa<br>
         R: Yeniden Başlat
       </div>
     </div>
@@ -139,11 +141,10 @@
       <button class="menu-btn level-btn" id="next-btn" style="display:none">Sonraki Seviye</button>
     </div>
 
-    <div id="touch-controls">
-      <button class="touch-btn" id="touch-left">⬅️</button>
-      <button class="touch-btn" id="touch-brake">⬇️</button>
-      <button class="touch-btn" id="touch-gas">⬆️</button>
-      <button class="touch-btn" id="touch-right">➡️</button>
+    <!-- Touch: Sol yarı = sola eğil, Sağ yarı = sağa eğil -->
+    <div id="touch-hint">
+      <span class="touch-side left">⬅️ SOL</span>
+      <span class="touch-side right">SAĞ ➡️</span>
     </div>
   </div>
 
