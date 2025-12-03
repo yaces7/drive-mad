@@ -211,7 +211,7 @@ class Game {
     this.renderer.clear();
 
     if (!this.gameState.isMenu && this.car) {
-      this.renderer.followTarget(this.car.body);
+      this.renderer.followTarget(this.car.chassis || this.car.body);
       const lm = this.levelManager;
 
       // Gravity zones

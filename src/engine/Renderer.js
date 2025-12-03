@@ -88,10 +88,11 @@ export class Renderer {
   // Monster truck çizimi - voxel tarzı
   drawMonsterTruck(car) {
     const ctx = this.ctx;
+    const chassis = car.chassis || car.body;
     ctx.save();
     ctx.translate(-this.camera.x, -this.camera.y);
-    ctx.translate(car.body.position.x, car.body.position.y);
-    ctx.rotate(car.body.angle);
+    ctx.translate(chassis.position.x, chassis.position.y);
+    ctx.rotate(chassis.angle);
 
     // Gövde boyutları
     const bodyW = 100;
