@@ -101,7 +101,7 @@ export class Car {
     this.maxSpeed = 18;
     this.acceleration = 0.12;
     this.brakeForce = 0.85;
-    this.airControlForce = 0.003;
+    this.airControlForce = 0.0008; // Düşürüldü - daha az hassas
     this.groundTorque = 0.0015;
   }
 
@@ -146,9 +146,15 @@ export class Car {
   }
 
   tilt(direction) {
-    // Havada denge kontrolü
-    const torque = direction * this.airControlForce * 100;
-    Body.setAngularVelocity(this.body, this.body.angularVelocity + torque);
+    // Havada denge kontrolü - maksimum açısal hız sınırı
+    const maxAngularVel = 0.15;
+    const currentAngVel = this.body.angularVelocity;
+    
+    // Eğer zaten maksimum hızda dönüyorsa, daha fazla ekleme
+    if (Math.abs(currentAngVel) < maxAngularVel) {
+      const torque = direction * this.airControlForce * 60;
+      Body.setAngularVelocity(this.body, currentAngVel + torque);
+    }
   }
 
   update(input) {
